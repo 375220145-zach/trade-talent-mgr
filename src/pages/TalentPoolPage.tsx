@@ -40,11 +40,17 @@ export default function TalentPoolPage() {
   useState(() => { seedMockData(); });
 
   const filtered = useMemo(() => {
-    let list = talents.filter(t => !t.is_deleted);
+    // 人才库只显示内部员工（排除储备池候选人，他们在招聘管道）
+    let list = talents.filter(t =>
+      !t.is_deleted &&
+      t.pool_type !== 'reserve'
+    );
     if (poolFilter !== 'all') {
       if (poolFilter === 'active') {
-        // "在岗"包含 active 和 key_position
-        list = list.filter(t => t.pool_type === 'active' || t.pool_type === 'key_position');
+        // "在岗"包含 active + key_position + pre_eliminated
+        list = list.filter(t =>
+          t.pool_type === 'active' || t.pool_type === 'key_position' || t.pool_type === 'pre_eliminated'
+        );
       } else {
         list = list.filter(t => t.pool_type === poolFilter);
       }
@@ -129,8 +135,11 @@ export default function TalentPoolPage() {
             onChange={setPoolFilter}
             style={{ width: 120 }}
             options={[
-              { label: '全部类型', value: 'all' },
-              ...Object.entries(POOL_TYPE_LABELS).map(([k, v]) => ({ label: v, value: k })),
+              { label: '全部', value: 'all' },
+              { label: '在岗', value: 'active' },
+              { label: '关键岗', value: 'key_position' },
+              { label: '预淘汰', value: 'pre_eliminated' },
+              { label: '淘汰', value: 'eliminated' },
             ]}
           />
           <Select

@@ -1,5 +1,8 @@
 // ============================================================
 // 模拟数据生成器 — 30 候选人 + 20 在岗员工
+// 规则：绩效/潜力 1-3→低, 4-8→中, 9-10→高
+//       明星 = perf≥9 & pot≥9
+//       (1,1) 淘汰对象 → pool_type='pre_eliminated'
 // ============================================================
 
 import type { Talent } from './schema';
@@ -28,34 +31,12 @@ const MARKETS = ['东南亚', '中东', '欧盟', '北美', '南美', '非洲', 
 const POSITIONS = ['外贸销售', '单证员', '采购经理', '跟单员', '外贸主管', '跨境电商运营', '大客户经理', '供应链专员', '报关员', '海外市场经理'];
 const DEPARTMENTS = ['业务部', '人力资源部', '渠道拓展部', '项目部'] as const;
 const EDUCATIONS = ['高中', '大专', '本科', '硕士', '博士'] as const;
-const HIGHLIGHTS = [
-  '独立开发东南亚市场，年销售额提升40%',
-  '英语流利，有海外参展经验',
-  '精通信用证操作，零差错率',
-  '带过5人外贸团队',
-  '熟悉RCEP原产地规则',
-  '有跨境电商从0到1经验',
-  '中东市场深耕8年',
-  '持有报关员资格证书',
-  '日语N1，服务过丰田供应商',
-  '擅长供应链成本优化',
-];
-const RISKS = [
-  '期望薪资偏高',
-  '行业经验集中单一品类',
-  '频繁跳槽（3年4家）',
-  '无团队管理经验',
-  '英语口语偏弱',
-  '无外贸实务经验（纯内贸转）',
-  '年龄偏大，学习曲线可能陡',
-  '异地求职，到岗时间不确定',
-  '上一份工作不足半年',
-  '学历偏低，晋升空间有限',
-];
 
+// 分数 → 九宫格坐标
+// 1-3→1(低), 4-8→2(中), 9-10→3(高)
 function scoreToGrid(score: number): 1 | 2 | 3 {
   if (score <= 3) return 1;
-  if (score <= 6) return 2;
+  if (score <= 8) return 2;
   return 3;
 }
 
@@ -72,6 +53,81 @@ function randomDate(daysBack: number): string {
   const d = new Date();
   d.setDate(d.getDate() - randomInt(0, daysBack));
   return d.toISOString();
+}
+
+// 根据实际数据生成匹配的风险描述
+function generateRisk(t: {
+  trade_experience_years: number;
+  age: number;
+  work_years: number;
+  education: string;
+  performance_score: number | null;
+  skills: string[];
+}): string {
+  const pool: string[] = [];
+  if (t.trade_experience_years === 0) {
+    return '无外贸实务经验（纯内贸转）';
+  }
+  if (t.trade_experience_years === 1) {
+    pool.push('外贸经验不足，需较多指导');
+  }
+  if (t.age > 40) {
+    pool.push('年龄偏大，学习曲线可能陡');
+  }
+  if (t.age <= 23) {
+    pool.push('应届生，缺乏职场经验');
+  }
+  if (t.work_years >= 8 && t.trade_experience_years <= 2) {
+    pool.push('行业跨度大，外贸积累浅');
+  }
+  if (t.education === '高中') {
+    pool.push('学历偏低，晋升空间有限');
+  }
+  if (t.work_years > 6 && !t.skills.includes('团队管理')) {
+    pool.push('工龄长但无团队管理经验');
+  }
+  if (t.performance_score && t.performance_score <= 4) {
+    pool.push('近两年绩效偏低，需改进');
+  }
+  // 有些人不标注风险
+  if (pool.length === 0) return Math.random() > 0.7 ? '期望薪资偏高' : '';
+  return pick(pool, 1)[0];
+}
+
+// 根据实际数据生成匹配的亮点描述
+function generateHighlight(t: {
+  trade_experience_years: number;
+  performance_score: number | null;
+  skills: string[];
+  languages: { language: string; level: string }[];
+}): string {
+  const pool: string[] = [];
+  if (t.trade_experience_years >= 8) {
+    pool.push('行业深耕多年，外贸经验丰富');
+  }
+  if (t.performance_score && t.performance_score >= 9) {
+    pool.push('近两年绩效持续优秀');
+  }
+  if (t.skills.includes('团队管理')) {
+    pool.push('有团队管理经验，可承担管理职责');
+  }
+  if (t.languages.some(l => l.language === '英语' && l.level === 'fluent')) {
+    pool.push('英语流利，可独立对接海外客户');
+  }
+  if (t.skills.includes('跨境电商运营')) {
+    pool.push('有跨境电商从0到1经验');
+  }
+  if (t.skills.includes('数据分析')) {
+    pool.push('数据敏感度高，擅长用数据驱动决策');
+  }
+  if (t.trade_experience_years >= 5) {
+    pool.push('独立开发过海外市场，有客户资源积累');
+  }
+  // fallback
+  if (pool.length === 0) {
+    pool.push('学习能力强，工作认真负责');
+  }
+  return pick(pool, 1)[0];
 }
 
 function generateTalent(overrides: Partial<Talent> = {}): Talent {
@@ -113,7 +169,7 @@ function generateTalent(overrides: Partial<Talent> = {}): Talent {
     resume_text: null,
 
     status: 'reviewing',
-    pool_type: 'reserve',
+    pool_type: 'active',       // 默认在岗，招聘管道中的候选人后续会改
     reserve_level: null,
 
     hr_review: { decision: null, notes: '', reviewed_at: null },
@@ -125,8 +181,8 @@ function generateTalent(overrides: Partial<Talent> = {}): Talent {
 
     performance_score: perf,
     potential_score: pot,
-    highlights: pick(HIGHLIGHTS, 1)[0],
-    risks: Math.random() > 0.4 ? pick(RISKS, 1)[0] : '',
+    highlights: generateHighlight({ trade_experience_years: tradeYears, performance_score: perf, skills, languages: langs }),
+    risks: generateRisk({ trade_experience_years: tradeYears, age, work_years: workYears, education, performance_score: perf, skills }),
     general_notes: '',
 
     is_deleted: false,
@@ -197,10 +253,15 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       t.business_interview = { scheduled_at: randomDate(17), interviewer: '王总', score: 9, notes: '综合能力突出', passed: true, interviewed_at: randomDate(14) };
       t.offer_status = 'accepted';
       t.pool_type = 'active';
-      t.grid_position = {
-        x: scoreToGrid(t.performance_score ?? 5),
-        y: scoreToGrid(t.potential_score ?? 5),
-      };
+      // 按分数自动落位九宫格
+      const gx = scoreToGrid(t.performance_score ?? 5);
+      const gy = scoreToGrid(t.potential_score ?? 5);
+      t.grid_position = { x: gx, y: gy };
+      // (1,1) 淘汰对象 → 预淘汰
+      if (gx === 1 && gy === 1) {
+        t.pool_type = 'pre_eliminated';
+        if (!t.risks) t.risks = '绩效与潜力双低，纳入预淘汰观察';
+      }
     } else if (status === 'offer_rejected') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(28) };
       t.hr_interview = { scheduled_at: randomDate(23), interviewer: '张HR', score: 8, notes: '优秀', passed: true, interviewed_at: randomDate(20) };
@@ -215,23 +276,37 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
 
 // 生成在岗员工（内部人才）
 function genActiveEmployee(overrides: Partial<Talent> = {}): Talent {
+  // 预淘汰员工绩效偏低
+  const isPreEliminated = overrides.pool_type === 'pre_eliminated';
+  const perfMin = isPreEliminated ? 2 : 4;
+  const perfMax = isPreEliminated ? 6 : 10;
+  const potMin = isPreEliminated ? 2 : 4;
+  const potMax = isPreEliminated ? 7 : 10;
+
   const t = generateTalent({
     status: 'hired',
     pool_type: 'active',
     source: 'internal',
+    performance_score: randomInt(perfMin, perfMax),
+    potential_score: randomInt(potMin, potMax),
     ...overrides,
   });
   t.hr_review = { decision: 'suitable', notes: '', reviewed_at: randomDate(365) };
   t.hr_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
   t.business_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
   t.offer_status = 'accepted';
-  // 先随机出分数，再按分数映射九宫格位置
-  t.performance_score = randomInt(4, 10);
-  t.potential_score = randomInt(4, 10);
-  t.grid_position = {
-    x: scoreToGrid(t.performance_score),
-    y: scoreToGrid(t.potential_score),
-  };
+
+  // 按分数自动落位
+  const gx = scoreToGrid(t.performance_score ?? 5);
+  const gy = scoreToGrid(t.potential_score ?? 5);
+  t.grid_position = { x: gx, y: gy };
+
+  // (1,1) 淘汰对象 → 预淘汰
+  if (gx === 1 && gy === 1 && t.pool_type !== 'key_position') {
+    t.pool_type = 'pre_eliminated';
+    if (!t.risks) t.risks = '绩效与潜力双低，纳入预淘汰观察';
+  }
+
   return t;
 }
 
@@ -287,8 +362,7 @@ export async function seedMockData() {
     work_years: 13,
     trade_experience_years: 10,
     performance_score: 9,
-    potential_score: 8,
-    grid_position: { x: 3, y: 3 },
+    potential_score: 9,
     highlights: '行业头部企业10年经验，年销售额破亿',
     risks: '薪资要求高，可能被竞争对手挖角',
   }));
@@ -305,9 +379,8 @@ export async function seedMockData() {
     languages: [{ language: '英语', level: 'business' }],
     work_years: 6,
     trade_experience_years: 4,
-    performance_score: 8,
+    performance_score: 9,
     potential_score: 9,
-    grid_position: { x: 3, y: 3 },
     highlights: '从0到1搭建跨境店铺，6个月做到类目TOP10',
     risks: '',
   }));
@@ -323,9 +396,8 @@ export async function seedMockData() {
     skills: ['供应商管理', '成本核算', '合同审核'],
     work_years: 20,
     trade_experience_years: 15,
-    performance_score: 4,
-    potential_score: 3,
-    grid_position: { x: 2, y: 1 },
+    performance_score: 3,
+    potential_score: 2,
     highlights: '',
     risks: '适应不了新系统，学习意愿低，近两年绩效持续下滑',
   }));

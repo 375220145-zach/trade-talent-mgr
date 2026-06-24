@@ -45,13 +45,19 @@ export default function DashboardPage() {
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
   useState(() => { seedMockData(); });
 
-  // 过滤：非删除 + 部门 + 库类型
+  // 过滤：非删除 + 内部员工（排除储备候选人）+ 部门 + 库类型
   const filtered = useMemo(() => {
-    let list = talents.filter(t => !t.is_deleted);
+    let list = talents.filter(t =>
+      !t.is_deleted &&
+      t.pool_type !== 'reserve'  // 储备候选人在招聘管道，不计入Dashboard
+    );
     if (deptFilter !== 'all') list = list.filter(t => t.department === deptFilter);
     if (poolFilter !== 'all') {
       if (poolFilter === 'active') {
-        list = list.filter(t => t.pool_type === 'active' || t.pool_type === 'key_position');
+        // "在岗"包含 active + key_position + pre_eliminated
+        list = list.filter(t =>
+          t.pool_type === 'active' || t.pool_type === 'key_position' || t.pool_type === 'pre_eliminated'
+        );
       } else {
         list = list.filter(t => t.pool_type === poolFilter);
       }
@@ -194,10 +200,9 @@ export default function DashboardPage() {
             options={[
               { label: '全部库类型', value: 'all' },
               { label: '在岗', value: 'active' },
-              { label: '储备', value: 'reserve' },
-              { label: '淘汰', value: 'eliminated' },
-              { label: '预淘汰', value: 'pre_eliminated' },
               { label: '关键岗', value: 'key_position' },
+              { label: '预淘汰', value: 'pre_eliminated' },
+              { label: '淘汰', value: 'eliminated' },
             ]}
           />
         </Space>
