@@ -2,7 +2,7 @@
 // 人才库页面 — 内部人才分类管理 + 储备池分级
 // ============================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Table, Tag, Select, Input, Space, Typography, Button, Modal,
@@ -52,6 +52,12 @@ export default function TalentPoolPage() {
 
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
   useState(() => { seedMockData(); });
+
+  // 切换人选时退出编辑状态
+  useEffect(() => {
+    setEditingLevel(false);
+    setEditingPoolType(false);
+  }, [detailTalent?.id]);
 
   const filtered = useMemo(() => {
     // 人才库只显示内部员工（排除招聘中的外部候选人）
