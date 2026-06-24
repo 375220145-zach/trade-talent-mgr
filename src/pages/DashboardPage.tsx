@@ -7,7 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Row, Col, Card, Select, Space, Typography, Statistic } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
-import type { Talent, Department, PoolType } from '../db/schema';
+import type { Department, PoolType } from '../db/schema';
 import { db } from '../db';
 import { seedMockData } from '../db/mock-data';
 
@@ -49,7 +49,13 @@ export default function DashboardPage() {
   const filtered = useMemo(() => {
     let list = talents.filter(t => !t.is_deleted);
     if (deptFilter !== 'all') list = list.filter(t => t.department === deptFilter);
-    if (poolFilter !== 'all') list = list.filter(t => t.pool_type === poolFilter);
+    if (poolFilter !== 'all') {
+      if (poolFilter === 'active') {
+        list = list.filter(t => t.pool_type === 'active' || t.pool_type === 'key_position');
+      } else {
+        list = list.filter(t => t.pool_type === poolFilter);
+      }
+    }
     return list;
   }, [talents, deptFilter, poolFilter]);
 

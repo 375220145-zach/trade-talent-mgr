@@ -7,7 +7,6 @@
 export type PoolType = 'active' | 'reserve' | 'eliminated' | 'pre_eliminated' | 'key_position';
 export type ReserveLevel = 'A' | 'B' | 'C' | null;
 export type CandidateStatus =
-  | 'new'
   | 'reviewing'
   | 'suitable'
   | 'unsuitable'
@@ -124,7 +123,6 @@ export const GRID_LABELS: Record<string, string> = {
 // ---- 状态流转规则 ----
 
 export const STATUS_TRANSITIONS: Record<CandidateStatus, CandidateStatus[]> = {
-  'new':                        ['reviewing'],
   'reviewing':                  ['suitable', 'unsuitable', 'reserve'],
   'suitable':                   ['hr_interview_scheduled'],
   'unsuitable':                 [],   // 终态
@@ -152,11 +150,10 @@ export const DELETE_ON_FAIL_STATUSES: CandidateStatus[] = [
 // ---- 状态中文标签 ----
 
 export const STATUS_LABELS: Record<CandidateStatus, string> = {
-  'new': '新简历',
-  'reviewing': '审核中',
+  'reviewing': '待审核',
   'suitable': '合适',
   'unsuitable': '不合适',
-  'reserve': '储备池',
+  'reserve': '已入库',
   'hr_interview_scheduled': 'HR面试已安排',
   'hr_interview_passed': 'HR面试通过',
   'hr_interview_failed': 'HR面试未通过',
@@ -183,8 +180,7 @@ export const RESERVE_LEVEL_LABELS: Record<string, string> = {
 };
 
 export const STATUS_COLORS: Record<CandidateStatus, string> = {
-  'new': '#1890ff',
-  'reviewing': '#722ed1',
+  'reviewing': '#1890ff',
   'suitable': '#52c41a',
   'unsuitable': '#ff4d4f',
   'reserve': '#faad14',

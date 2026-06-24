@@ -6,7 +6,7 @@ import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Table, Button, Space, Input, Select, Tag, Typography, Segmented,
-  Switch, message,
+  Switch,
 } from 'antd';
 import {
   PlusOutlined, SearchOutlined, ClearOutlined,

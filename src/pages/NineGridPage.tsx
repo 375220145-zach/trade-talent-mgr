@@ -5,7 +5,7 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  Typography, Modal, List, Tag, Select, Button, Space, message, Empty,
+  Typography, Modal, List, Tag, Button, Space, message, Empty,
 } from 'antd';
 import type { Talent } from '../db/schema';
 import { GRID_LABELS } from '../db/schema';
@@ -40,7 +40,6 @@ export default function NineGridPage() {
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [placingTalent, setPlacingTalent] = useState<Talent | null>(null);
-  const [targetPos, setTargetPos] = useState<string>('');
 
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
   useState(() => { seedMockData(); });

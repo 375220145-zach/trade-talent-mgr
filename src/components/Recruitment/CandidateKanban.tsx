@@ -2,13 +2,12 @@
 // 招聘管道 Kanban 视图 — 按状态分列
 // ============================================================
 
-import { Card, Tag, Typography, Tooltip } from 'antd';
+import { Card, Tag, Typography } from 'antd';
 import type { Talent, CandidateStatus } from '../../db/schema';
-import { STATUS_LABELS, STATUS_COLORS } from '../../db/schema';
+import { STATUS_COLORS } from '../../db/schema';
 
 const KANBAN_COLUMNS: { status: CandidateStatus; title: string }[] = [
-  { status: 'new', title: '新简历' },
-  { status: 'reviewing', title: '审核中' },
+  { status: 'reviewing', title: '待审核' },
   { status: 'hr_interview_scheduled', title: 'HR面试' },
   { status: 'hr_interview_passed', title: 'HR通过' },
   { status: 'business_interview_scheduled', title: '业务面试' },

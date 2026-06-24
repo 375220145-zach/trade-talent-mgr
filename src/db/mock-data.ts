@@ -28,7 +28,6 @@ const MARKETS = ['东南亚', '中东', '欧盟', '北美', '南美', '非洲', 
 const POSITIONS = ['外贸销售', '单证员', '采购经理', '跟单员', '外贸主管', '跨境电商运营', '大客户经理', '供应链专员', '报关员', '海外市场经理'];
 const DEPARTMENTS = ['业务部', '人力资源部', '渠道拓展部', '项目部'] as const;
 const EDUCATIONS = ['高中', '大专', '本科', '硕士', '博士'] as const;
-const GENDERS: ('男' | '女')[] = ['男', '女'];
 const HIGHLIGHTS = [
   '独立开发东南亚市场，年销售额提升40%',
   '英语流利，有海外参展经验',
@@ -53,6 +52,12 @@ const RISKS = [
   '上一份工作不足半年',
   '学历偏低，晋升空间有限',
 ];
+
+function scoreToGrid(score: number): 1 | 2 | 3 {
+  if (score <= 3) return 1;
+  if (score <= 6) return 2;
+  return 3;
+}
 
 function pick<T>(arr: T[], count: number): T[] {
   const shuffled = [...arr].sort(() => Math.random() - 0.5);
@@ -107,7 +112,7 @@ function generateTalent(overrides: Partial<Talent> = {}): Talent {
     resume_file_name: `简历_${surname}${given}_${pick(POSITIONS, 1)[0]}.pdf`,
     resume_text: null,
 
-    status: 'new',
+    status: 'reviewing',
     pool_type: 'reserve',
     reserve_level: null,
 
@@ -143,9 +148,7 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
     t.status = status;
 
     // 按状态填充合理数据
-    if (status === 'reviewing') {
-      t.status = 'reviewing';
-    } else if (status === 'suitable') {
+    if (status === 'suitable') {
       t.hr_review = { decision: 'suitable', notes: '沟通表达好，经验匹配', reviewed_at: randomDate(10) };
     } else if (status === 'unsuitable') {
       t.hr_review = { decision: 'unsuitable', notes: '英语水平不达标', reviewed_at: randomDate(10) };
@@ -194,7 +197,10 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       t.business_interview = { scheduled_at: randomDate(17), interviewer: '王总', score: 9, notes: '综合能力突出', passed: true, interviewed_at: randomDate(14) };
       t.offer_status = 'accepted';
       t.pool_type = 'active';
-      t.grid_position = { x: randomInt(2, 3) as 2 | 3, y: randomInt(2, 3) as 2 | 3 };
+      t.grid_position = {
+        x: scoreToGrid(t.performance_score ?? 5),
+        y: scoreToGrid(t.potential_score ?? 5),
+      };
     } else if (status === 'offer_rejected') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(28) };
       t.hr_interview = { scheduled_at: randomDate(23), interviewer: '张HR', score: 8, notes: '优秀', passed: true, interviewed_at: randomDate(20) };
@@ -219,12 +225,13 @@ function genActiveEmployee(overrides: Partial<Talent> = {}): Talent {
   t.hr_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
   t.business_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
   t.offer_status = 'accepted';
-  t.grid_position = {
-    x: randomInt(1, 3) as 1 | 2 | 3,
-    y: randomInt(1, 3) as 1 | 2 | 3,
-  };
+  // 先随机出分数，再按分数映射九宫格位置
   t.performance_score = randomInt(4, 10);
   t.potential_score = randomInt(4, 10);
+  t.grid_position = {
+    x: scoreToGrid(t.performance_score),
+    y: scoreToGrid(t.potential_score),
+  };
   return t;
 }
 
@@ -235,8 +242,7 @@ export async function seedMockData() {
   const talents: Talent[] = [];
 
   // ---- 招聘管道中的候选人 ----
-  talents.push(...genWithStatus('new', 5));
-  talents.push(...genWithStatus('reviewing', 2));
+  talents.push(...genWithStatus('reviewing', 7));
   talents.push(...genWithStatus('suitable', 2));
   talents.push(...genWithStatus('unsuitable', 3));
   talents.push(...genWithStatus('reserve', 4));
@@ -282,7 +288,7 @@ export async function seedMockData() {
     trade_experience_years: 10,
     performance_score: 9,
     potential_score: 8,
-    grid_position: { x: 3, y: 2 },
+    grid_position: { x: 3, y: 3 },
     highlights: '行业头部企业10年经验，年销售额破亿',
     risks: '薪资要求高，可能被竞争对手挖角',
   }));
@@ -301,7 +307,7 @@ export async function seedMockData() {
     trade_experience_years: 4,
     performance_score: 8,
     potential_score: 9,
-    grid_position: { x: 2, y: 3 },
+    grid_position: { x: 3, y: 3 },
     highlights: '从0到1搭建跨境店铺，6个月做到类目TOP10',
     risks: '',
   }));
@@ -319,7 +325,7 @@ export async function seedMockData() {
     trade_experience_years: 15,
     performance_score: 4,
     potential_score: 3,
-    grid_position: { x: 1, y: 1 },
+    grid_position: { x: 2, y: 1 },
     highlights: '',
     risks: '适应不了新系统，学习意愿低，近两年绩效持续下滑',
   }));

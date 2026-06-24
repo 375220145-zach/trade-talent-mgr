@@ -5,10 +5,10 @@
 import { useState, useEffect } from 'react';
 import {
   Modal, Form, Input, Select, InputNumber, Space, Button, Upload,
-  message, Divider, Tag, Alert, Typography,
+  message, Divider, Alert, Typography,
 } from 'antd';
-import { UploadOutlined, SearchOutlined } from '@ant-design/icons';
-import type { Talent, Gender, Education, Department } from '../../db/schema';
+import { UploadOutlined } from '@ant-design/icons';
+import type { Talent } from '../../db/schema';
 import { db } from '../../db';
 import { parseResume, type ParsedResume } from '../../utils/resume-parser';
 
@@ -75,13 +75,13 @@ export default function CandidateForm({ open, onClose, talent }: Props) {
     };
 
     if (isEdit) {
-      await db.talents.update(talent!.id!, data);
+      await db.talents.update(talent!.id!, { ...data });
       message.success('候选人信息已更新');
     } else {
       const newTalent: Talent = {
         ...data,
-        status: 'new',
-        pool_type: 'reserve',
+        status: 'reviewing',
+        pool_type: 'active',
         reserve_level: null,
         source: 'hr_upload',
         resume_file_name: null,

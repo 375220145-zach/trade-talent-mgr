@@ -5,10 +5,10 @@
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  Table, Tag, Select, Input, Space, Typography, Tabs, Button, Modal,
+  Table, Tag, Select, Input, Space, Typography, Button, Modal,
   Descriptions, message,
 } from 'antd';
-import { SearchOutlined, EditOutlined } from '@ant-design/icons';
+import { SearchOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Talent, PoolType, ReserveLevel } from '../db/schema';
 import { POOL_TYPE_LABELS, RESERVE_LEVEL_LABELS, GRID_LABELS } from '../db/schema';
@@ -20,14 +20,35 @@ export default function TalentPoolPage() {
   const [poolFilter, setPoolFilter] = useState<PoolType | 'all'>('all');
   const [reserveFilter, setReserveFilter] = useState<ReserveLevel | 'all'>('all');
   const [detailTalent, setDetailTalent] = useState<Talent | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
+  const [editingLevel, setEditingLevel] = useState(false);
+  const [levelValue, setLevelValue] = useState<ReserveLevel>(null);
+
+  async function handleSaveLevel() {
+    if (!detailTalent?.id) return;
+    await db.talents.update(detailTalent.id, {
+      reserve_level: levelValue,
+      updated_at: new Date().toISOString(),
+    });
+    message.success(`储备等级已更新为: ${levelValue ? RESERVE_LEVEL_LABELS[levelValue] : '无'}`);
+    setEditingLevel(false);
+    // refresh detail
+    const updated = await db.talents.get(detailTalent.id);
+    if (updated) setDetailTalent(updated);
+  }
 
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
   useState(() => { seedMockData(); });
 
   const filtered = useMemo(() => {
     let list = talents.filter(t => !t.is_deleted);
-    if (poolFilter !== 'all') list = list.filter(t => t.pool_type === poolFilter);
+    if (poolFilter !== 'all') {
+      if (poolFilter === 'active') {
+        // "在岗"包含 active 和 key_position
+        list = list.filter(t => t.pool_type === 'active' || t.pool_type === 'key_position');
+      } else {
+        list = list.filter(t => t.pool_type === poolFilter);
+      }
+    }
     if (reserveFilter !== 'all') list = list.filter(t => t.reserve_level === reserveFilter);
     if (searchText) {
       const kw = searchText.toLowerCase();
@@ -124,7 +145,7 @@ export default function TalentPoolPage() {
             ]}
           />
         </Space>
-        <Button icon={<EditOutlined />} onClick={() => setEditOpen(true)}>批量管理</Button>
+        <Button icon={<EditOutlined />} onClick={() => message.info('批量管理功能开发中')}>批量管理</Button>
       </div>
 
       <Table
@@ -156,8 +177,45 @@ export default function TalentPoolPage() {
                 {POOL_TYPE_LABELS[detailTalent.pool_type]}
               </Tag>
             </Descriptions.Item>
+            <Descriptions.Item label="来源">
+              <Tag color={detailTalent.source === 'internal' ? 'purple' : 'blue'}>
+                {detailTalent.source === 'internal' ? '内部员工' : '外部候选人'}
+              </Tag>
+            </Descriptions.Item>
             <Descriptions.Item label="储备等级">
-              {detailTalent.reserve_level ? RESERVE_LEVEL_LABELS[detailTalent.reserve_level] : '-'}
+              {editingLevel ? (
+                <Space>
+                  <Select
+                    size="small"
+                    value={levelValue}
+                    onChange={setLevelValue}
+                    style={{ width: 140 }}
+                    options={[
+                      { label: '无', value: null },
+                      { label: 'A库·随时', value: 'A' },
+                      { label: 'B库·近期', value: 'B' },
+                      { label: 'C库·远期', value: 'C' },
+                    ]}
+                  />
+                  <Button size="small" type="primary" icon={<SaveOutlined />} onClick={handleSaveLevel}>保存</Button>
+                  <Button size="small" onClick={() => setEditingLevel(false)}>取消</Button>
+                </Space>
+              ) : (
+                <Space>
+                  <span>{detailTalent.reserve_level ? RESERVE_LEVEL_LABELS[detailTalent.reserve_level] : '-'}</span>
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      setLevelValue(detailTalent.reserve_level);
+                      setEditingLevel(true);
+                    }}
+                  >
+                    修改
+                  </Button>
+                </Space>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="现任岗位">{detailTalent.position_applied}</Descriptions.Item>
             <Descriptions.Item label="意向岗位">{detailTalent.position_intended}</Descriptions.Item>
