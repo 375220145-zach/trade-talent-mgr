@@ -249,6 +249,7 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       t.business_interview = { scheduled_at: randomDate(17), interviewer: '王总', score: 9, notes: '综合能力突出', passed: true, interviewed_at: randomDate(14) };
       t.offer_status = 'accepted';
       t.pool_type = 'active';
+      t.source = 'internal';  // 入职即内部员工
       // 按分数自动落位九宫格
       const gx = scoreToGrid(t.performance_score ?? 5);
       const gy = scoreToGrid(t.potential_score ?? 5);
