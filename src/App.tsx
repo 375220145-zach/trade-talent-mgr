@@ -23,7 +23,7 @@ export default function App() {
         },
       }}
     >
-      <BrowserRouter>
+      <BrowserRouter basename="/trade-talent-mgr">
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
