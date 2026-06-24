@@ -45,14 +45,10 @@ export async function executeTransition(
       : '业务面试不通过';
   }
 
-  // 处理进入储备池
-  if (toStatus === 'reserve') {
-    update.pool_type = 'reserve';
-  }
-
   // 处理入职
   if (toStatus === 'hired') {
     update.pool_type = 'active';
+    update.source = 'internal';  // 入职后标记为内部员工
   }
 
   Object.assign(update, extra || {});

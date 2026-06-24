@@ -22,6 +22,8 @@ export default function TalentPoolPage() {
   const [detailTalent, setDetailTalent] = useState<Talent | null>(null);
   const [editingLevel, setEditingLevel] = useState(false);
   const [levelValue, setLevelValue] = useState<ReserveLevel>(null);
+  const [editingPoolType, setEditingPoolType] = useState(false);
+  const [poolTypeValue, setPoolTypeValue] = useState<PoolType>('active');
 
   async function handleSaveLevel() {
     if (!detailTalent?.id) return;
@@ -36,20 +38,33 @@ export default function TalentPoolPage() {
     if (updated) setDetailTalent(updated);
   }
 
+  async function handleSavePoolType() {
+    if (!detailTalent?.id) return;
+    await db.talents.update(detailTalent.id, {
+      pool_type: poolTypeValue,
+      updated_at: new Date().toISOString(),
+    });
+    message.success(`库类型已更新为: ${POOL_TYPE_LABELS[poolTypeValue]}`);
+    setEditingPoolType(false);
+    const updated = await db.talents.get(detailTalent.id);
+    if (updated) setDetailTalent(updated);
+  }
+
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
   useState(() => { seedMockData(); });
 
   const filtered = useMemo(() => {
-    // 人才库只显示内部员工（排除储备池候选人，他们在招聘管道）
+    // 人才库只显示内部员工（排除招聘中的外部候选人）
     let list = talents.filter(t =>
       !t.is_deleted &&
-      t.pool_type !== 'reserve'
+      t.source === 'internal'
     );
     if (poolFilter !== 'all') {
       if (poolFilter === 'active') {
-        // "在岗"包含 active + key_position + pre_eliminated
+        // "在岗"包含 active + key_position + pre_eliminated + reserve
         list = list.filter(t =>
-          t.pool_type === 'active' || t.pool_type === 'key_position' || t.pool_type === 'pre_eliminated'
+          t.pool_type === 'active' || t.pool_type === 'key_position' ||
+          t.pool_type === 'pre_eliminated' || t.pool_type === 'reserve'
         );
       } else {
         list = list.filter(t => t.pool_type === poolFilter);
@@ -138,6 +153,7 @@ export default function TalentPoolPage() {
               { label: '全部', value: 'all' },
               { label: '在岗', value: 'active' },
               { label: '关键岗', value: 'key_position' },
+              { label: '储备（备份）', value: 'reserve' },
               { label: '预淘汰', value: 'pre_eliminated' },
               { label: '淘汰', value: 'eliminated' },
             ]}
@@ -182,9 +198,42 @@ export default function TalentPoolPage() {
             <Descriptions.Item label="学历">{detailTalent.education}</Descriptions.Item>
             <Descriptions.Item label="工龄">{detailTalent.work_years}年（外贸{detailTalent.trade_experience_years}年）</Descriptions.Item>
             <Descriptions.Item label="库类型">
-              <Tag color={detailTalent.pool_type === 'active' ? 'green' : detailTalent.pool_type === 'key_position' ? 'purple' : 'gold'}>
-                {POOL_TYPE_LABELS[detailTalent.pool_type]}
-              </Tag>
+              {editingPoolType ? (
+                <Space>
+                  <Select
+                    size="small"
+                    value={poolTypeValue}
+                    onChange={setPoolTypeValue}
+                    style={{ width: 150 }}
+                    options={[
+                      { label: '在岗', value: 'active' },
+                      { label: '储备（备份）', value: 'reserve' },
+                      { label: '关键岗', value: 'key_position' },
+                      { label: '预淘汰', value: 'pre_eliminated' },
+                      { label: '淘汰', value: 'eliminated' },
+                    ]}
+                  />
+                  <Button size="small" type="primary" icon={<SaveOutlined />} onClick={handleSavePoolType}>保存</Button>
+                  <Button size="small" onClick={() => setEditingPoolType(false)}>取消</Button>
+                </Space>
+              ) : (
+                <Space>
+                  <Tag color={
+                    detailTalent.pool_type === 'active' ? 'green' :
+                    detailTalent.pool_type === 'reserve' ? 'gold' :
+                    detailTalent.pool_type === 'key_position' ? 'purple' :
+                    detailTalent.pool_type === 'pre_eliminated' ? 'orange' : 'red'
+                  }>
+                    {POOL_TYPE_LABELS[detailTalent.pool_type]}
+                  </Tag>
+                  <Button
+                    size="small" type="link" icon={<EditOutlined />}
+                    onClick={() => { setPoolTypeValue(detailTalent.pool_type); setEditingPoolType(true); }}
+                  >
+                    修改
+                  </Button>
+                </Space>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="来源">
               <Tag color={detailTalent.source === 'internal' ? 'purple' : 'blue'}>

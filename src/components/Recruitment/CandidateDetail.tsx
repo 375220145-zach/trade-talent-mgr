@@ -4,15 +4,14 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Drawer, Descriptions, Tag, Button, Space, Divider, Select, Input, InputNumber,
+  Drawer, Descriptions, Tag, Button, Space, Divider, Input, InputNumber,
   DatePicker, message, Popconfirm, Typography, Timeline,
 } from 'antd';
 import {
-  CheckOutlined, CloseOutlined, ArrowRightOutlined, ClockCircleOutlined,
-  EditOutlined,
+  CheckOutlined, CloseOutlined, ArrowRightOutlined, EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import type { Talent, CandidateStatus, ReserveLevel } from '../../db/schema';
+import type { Talent, CandidateStatus } from '../../db/schema';
 import { STATUS_LABELS, STATUS_COLORS } from '../../db/schema';
 import { executeTransition } from '../../utils/status-engine';
 import { db } from '../../db';
@@ -34,9 +33,6 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
   const [editingInterview, setEditingInterview] = useState(false);
   const [editingStage, setEditingStage] = useState<'hr' | 'business' | null>(null);
 
-  // 储备等级
-  const [reserveLevel, setReserveLevel] = useState<ReserveLevel>('B');
-
   // 切换人才时重置表单状态
   useEffect(() => {
     setInterviewDate(null);
@@ -45,15 +41,13 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
     setInterviewNotes('');
     setEditingInterview(false);
     setEditingStage(null);
-    setReserveLevel('B');
   }, [talent?.id, open]);
 
   if (!talent) return null;
 
   const nextStatuses: CandidateStatus[] = talent.status ? [
-    ...(talent.status === 'reviewing' ? ['suitable' as const, 'unsuitable' as const, 'reserve' as const] : []),
+    ...(talent.status === 'reviewing' ? ['suitable' as const, 'unsuitable' as const] : []),
     ...(talent.status === 'suitable' ? ['hr_interview_scheduled' as const] : []),
-    ...(talent.status === 'reserve' ? ['suitable' as const] : []),
     ...(talent.status === 'hr_interview_scheduled' ? ['hr_interview_passed' as const, 'hr_interview_failed' as const] : []),
     ...(talent.status === 'hr_interview_passed' ? ['business_interview_scheduled' as const] : []),
     ...(talent.status === 'business_interview_scheduled' ? ['business_interview_passed' as const, 'business_interview_failed' as const] : []),
@@ -273,37 +267,6 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
                 })}
               >
                 <Button danger icon={<CloseOutlined />} loading={acting}>{label}</Button>
-              </Popconfirm>
-            );
-          }
-          if (next === 'reserve') {
-            return (
-              <Popconfirm
-                key={next}
-                title={
-                  <div>
-                    <div style={{ marginBottom: 8 }}>确认放入储备库？</div>
-                    <div>储备等级:
-                      <Select
-                        size="small"
-                        value={reserveLevel}
-                        onChange={v => setReserveLevel(v as ReserveLevel)}
-                        style={{ width: 140, marginLeft: 8 }}
-                        options={[
-                          { label: 'A库·随时', value: 'A' },
-                          { label: 'B库·近期', value: 'B' },
-                          { label: 'C库·远期', value: 'C' },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                }
-                onConfirm={() => handleTransition(next, {
-                  hr_review: { ...talent.hr_review, decision: 'reserve', reviewed_at: new Date().toISOString() },
-                  reserve_level: reserveLevel,
-                })}
-              >
-                <Button icon={<ClockCircleOutlined />} loading={acting}>{label}</Button>
               </Popconfirm>
             );
           }

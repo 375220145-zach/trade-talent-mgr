@@ -10,7 +10,6 @@ export type CandidateStatus =
   | 'reviewing'
   | 'suitable'
   | 'unsuitable'
-  | 'reserve'
   | 'hr_interview_scheduled'
   | 'hr_interview_passed'
   | 'hr_interview_failed'
@@ -123,10 +122,9 @@ export const GRID_LABELS: Record<string, string> = {
 // ---- 状态流转规则 ----
 
 export const STATUS_TRANSITIONS: Record<CandidateStatus, CandidateStatus[]> = {
-  'reviewing':                  ['suitable', 'unsuitable', 'reserve'],
+  'reviewing':                  ['suitable', 'unsuitable'],
   'suitable':                   ['hr_interview_scheduled'],
   'unsuitable':                 [],   // 终态
-  'reserve':                    ['suitable'],   // 可重新激活
   'hr_interview_scheduled':     ['hr_interview_passed', 'hr_interview_failed'],
   'hr_interview_passed':        ['business_interview_scheduled'],
   'hr_interview_failed':        [],   // 终态（软删除）
@@ -153,7 +151,6 @@ export const STATUS_LABELS: Record<CandidateStatus, string> = {
   'reviewing': '待审核',
   'suitable': '合适',
   'unsuitable': '不合适',
-  'reserve': '已入库',
   'hr_interview_scheduled': 'HR面试已安排',
   'hr_interview_passed': 'HR面试通过',
   'hr_interview_failed': 'HR面试未通过',
@@ -167,7 +164,7 @@ export const STATUS_LABELS: Record<CandidateStatus, string> = {
 
 export const POOL_TYPE_LABELS: Record<PoolType, string> = {
   'active': '在岗',
-  'reserve': '储备',
+  'reserve': '储备（备份）',
   'eliminated': '淘汰',
   'pre_eliminated': '预淘汰',
   'key_position': '关键岗',
@@ -183,7 +180,6 @@ export const STATUS_COLORS: Record<CandidateStatus, string> = {
   'reviewing': '#1890ff',
   'suitable': '#52c41a',
   'unsuitable': '#ff4d4f',
-  'reserve': '#faad14',
   'hr_interview_scheduled': '#1677ff',
   'hr_interview_passed': '#52c41a',
   'hr_interview_failed': '#ff4d4f',

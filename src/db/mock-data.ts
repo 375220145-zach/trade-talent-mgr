@@ -211,10 +211,6 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       t.is_deleted = true;
       t.deleted_reason = '简历筛选不合适';
       t.deleted_at = randomDate(5);
-    } else if (status === 'reserve') {
-      t.hr_review = { decision: 'reserve', notes: '能力不错但当前岗位已满', reviewed_at: randomDate(15) };
-      t.pool_type = 'reserve';
-      t.reserve_level = pick(['A', 'B', 'C'] as const, 1)[0];
     } else if (status === 'hr_interview_scheduled') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(12) };
       t.hr_interview = { scheduled_at: randomDate(3), interviewer: '张HR', score: null, notes: '', passed: null, interviewed_at: null };
@@ -317,10 +313,9 @@ export async function seedMockData() {
   const talents: Talent[] = [];
 
   // ---- 招聘管道中的候选人 ----
-  talents.push(...genWithStatus('reviewing', 7));
-  talents.push(...genWithStatus('suitable', 2));
+  talents.push(...genWithStatus('reviewing', 9));  // 原7+原reserve的4合并
+  talents.push(...genWithStatus('suitable', 4));
   talents.push(...genWithStatus('unsuitable', 3));
-  talents.push(...genWithStatus('reserve', 4));
   talents.push(...genWithStatus('hr_interview_scheduled', 2));
   talents.push(...genWithStatus('hr_interview_passed', 2));
   talents.push(...genWithStatus('hr_interview_failed', 2));
@@ -332,6 +327,11 @@ export async function seedMockData() {
   talents.push(...genWithStatus('offer_rejected', 1));
 
   // ---- 在岗员工 ----
+  // 储备备份人员（在职，作为关键岗替代人选）
+  talents.push(genActiveEmployee({ department: '业务部', position_applied: '外贸销售', position_intended: '外贸主管', pool_type: 'reserve', reserve_level: 'A' }));
+  talents.push(genActiveEmployee({ department: '渠道拓展部', position_applied: '跨境电商运营', position_intended: '渠道经理', pool_type: 'reserve', reserve_level: 'B' }));
+  talents.push(genActiveEmployee({ department: '项目部', position_applied: '供应链专员', position_intended: '采购经理', pool_type: 'reserve', reserve_level: 'B' }));
+
   talents.push(genActiveEmployee({ department: '业务部', position_applied: '外贸销售', position_intended: '外贸主管', pool_type: 'active' }));
   talents.push(genActiveEmployee({ department: '业务部', position_applied: '外贸销售', position_intended: '外贸销售', pool_type: 'active' }));
   talents.push(genActiveEmployee({ department: '业务部', position_applied: '大客户经理', position_intended: '大客户经理', pool_type: 'active' }));
