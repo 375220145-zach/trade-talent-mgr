@@ -2,20 +2,39 @@
 // Dashboard — 5 张图表 + 部门/库类型筛选
 // ============================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Row, Col, Card, Select, Space, Typography, Statistic } from 'antd';
-import { TeamOutlined, UserOutlined } from '@ant-design/icons';
-import ReactEChartsCore from 'echarts-for-react/lib/core';
-import * as echarts from 'echarts/core';
-import { PieChart, BarChart } from 'echarts/charts';
-import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
+import { TeamOutlined } from '@ant-design/icons';
+import * as echarts from 'echarts';
 import type { Talent, Department, PoolType } from '../db/schema';
 import { db } from '../db';
 import { seedMockData } from '../db/mock-data';
 
-echarts.use([PieChart, BarChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer]);
+/** 原生 ECharts 轻量包装组件，避免 echarts-for-react 的 ESM/CJS 兼容问题 */
+function ReactEChart({ option, style }: { option: any; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<echarts.ECharts | null>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    if (!chartRef.current) {
+      chartRef.current = echarts.init(ref.current);
+    }
+    chartRef.current.setOption(option, true);
+  }, [option]);
+
+  useEffect(() => {
+    const handleResize = () => chartRef.current?.resize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      chartRef.current?.dispose();
+    };
+  }, []);
+
+  return <div ref={ref} style={style} />;
+}
 
 const DEPARTMENTS: Department[] = ['业务部', '人力资源部', '渠道拓展部', '项目部'];
 
@@ -187,12 +206,12 @@ export default function DashboardPage() {
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="男性" value={maleCount} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="男性" value={maleCount} styles={{ content: { color: '#1677ff' } }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card size="small">
-            <Statistic title="女性" value={femaleCount} valueStyle={{ color: '#ff85c0' }} />
+            <Statistic title="女性" value={femaleCount} styles={{ content: { color: '#ff85c0' } }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -206,27 +225,27 @@ export default function DashboardPage() {
       <Row gutter={[16, 16]}>
         <Col span={12}>
           <Card title="员工性别分析" size="small">
-            <ReactEChartsCore echarts={echarts} option={genderOption} style={{ height: 280 }} />
+            <ReactEChart option={genderOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="各部门员工人数分析" size="small">
-            <ReactEChartsCore echarts={echarts} option={deptOption} style={{ height: 280 }} />
+            <ReactEChart option={deptOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="员工学历分析" size="small">
-            <ReactEChartsCore echarts={echarts} option={eduOption} style={{ height: 280 }} />
+            <ReactEChart option={eduOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="员工年龄分析" size="small">
-            <ReactEChartsCore echarts={echarts} option={ageOption} style={{ height: 280 }} />
+            <ReactEChart option={ageOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col span={12}>
           <Card title="员工工龄分析（社会工龄）" size="small">
-            <ReactEChartsCore echarts={echarts} option={tenureOption} style={{ height: 280 }} />
+            <ReactEChart option={tenureOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col span={6} />
