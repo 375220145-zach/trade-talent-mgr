@@ -39,8 +39,6 @@ const CELL_BORDER_COLORS: Record<string, string> = {
   '3,1': '#ffe58f', '3,2': '#87e8de', '3,3': '#b7eb8f',
 };
 
-const CELL_SIZE = 140;
-const AXIS_SPACE = 50;
 const GRID_GAP = 10;
 
 export default function NineGridPage() {
@@ -129,7 +127,7 @@ export default function NineGridPage() {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          minHeight: CELL_SIZE,
+          minHeight: 130,
         }}
       >
         <div style={{ fontSize: 14, fontWeight: 700, color: '#333' }}>{GRID_LABELS[key]}</div>
@@ -137,30 +135,6 @@ export default function NineGridPage() {
         <div style={{ fontSize: 28, fontWeight: 700, color: '#1677ff', marginTop: 6 }}>{count}</div>
         <div style={{ fontSize: 11, color: '#999' }}>人</div>
       </div>
-    );
-  }
-
-  // ---- 坐标轴箭头 ----
-  function ArrowHead({ direction }: { direction: 'up' | 'right' }) {
-    const size = 8;
-    const color = '#1677ff';
-    if (direction === 'up') {
-      return (
-        <div style={{
-          width: 0, height: 0,
-          borderLeft: `${size}px solid transparent`,
-          borderRight: `${size}px solid transparent`,
-          borderBottom: `${size + 2}px solid ${color}`,
-        }} />
-      );
-    }
-    return (
-      <div style={{
-        width: 0, height: 0,
-        borderTop: `${size}px solid transparent`,
-        borderBottom: `${size}px solid transparent`,
-        borderLeft: `${size + 2}px solid ${color}`,
-      }} />
     );
   }
 
@@ -183,44 +157,18 @@ export default function NineGridPage() {
       </div>
 
       {/* === 九宫格 + 坐标轴 === */}
-      <div style={{ display: 'flex', alignItems: 'stretch', marginBottom: 24 }}>
+      <div style={{ display: 'flex', marginBottom: 24 }}>
 
         {/* Y 轴（潜力） */}
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center',
-          width: AXIS_SPACE, flexShrink: 0,
+          justifyContent: 'space-between', width: 36, flexShrink: 0,
+          paddingBottom: 4,
         }}>
-          {/* 箭头朝上 */}
-          <ArrowHead direction="up" />
-          {/* 轴线 */}
-          <div style={{
-            flex: 1, width: 3, backgroundColor: '#1677ff',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-            position: 'relative',
-          }}>
-            {/* 刻度 3 */}
-            <div style={{ position: 'absolute', top: 0, left: 3, display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 10, height: 2, backgroundColor: '#1677ff' }} />
-              <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginLeft: 4 }}>3 高</span>
-            </div>
-            {/* 刻度 2 */}
-            <div style={{ position: 'absolute', top: '33%', left: 3, display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 10, height: 2, backgroundColor: '#1677ff' }} />
-              <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginLeft: 4 }}>2 中</span>
-            </div>
-            {/* 刻度 1 */}
-            <div style={{ position: 'absolute', top: '66%', left: 3, display: 'flex', alignItems: 'center' }}>
-              <div style={{ width: 10, height: 2, backgroundColor: '#1677ff' }} />
-              <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginLeft: 4 }}>1 低</span>
-            </div>
-          </div>
-          {/* Y 轴标签 */}
-          <div style={{
-            writingMode: 'vertical-rl', fontSize: 16, fontWeight: 700,
-            color: '#1677ff', letterSpacing: 6, marginTop: 6,
-          }}>
-            潜力
-          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#1677ff' }}>潜力 ↑</span>
+          <span style={{ fontSize: 12, color: '#1677ff', fontWeight: 600 }}>高</span>
+          <div style={{ flex: 1, width: 0, borderLeft: '2px dashed #1677ff', margin: '4px 0' }} />
+          <span style={{ fontSize: 12, color: '#1677ff', fontWeight: 600 }}>低</span>
         </div>
 
         {/* 格子区 + X 轴 */}
@@ -231,7 +179,6 @@ export default function NineGridPage() {
             gridTemplateColumns: '1fr 1fr 1fr',
             gridTemplateRows: '1fr 1fr 1fr',
             gap: GRID_GAP,
-            maxWidth: CELL_SIZE * 3 + GRID_GAP * 2 + AXIS_SPACE,
           }}>
             {[3, 2, 1].map(y =>
               [1, 2, 3].map(x => renderCell(x, y))
@@ -241,38 +188,12 @@ export default function NineGridPage() {
           {/* X 轴 */}
           <div style={{
             display: 'flex', alignItems: 'center',
-            marginTop: 4, height: AXIS_SPACE,
-            maxWidth: CELL_SIZE * 3 + GRID_GAP * 2 + AXIS_SPACE,
+            marginTop: 6,
           }}>
-            <div style={{
-              flex: 1, height: 3, backgroundColor: '#1677ff',
-              display: 'flex', justifyContent: 'space-between',
-              position: 'relative',
-            }}>
-              {/* 刻度 1 */}
-              <div style={{ position: 'absolute', left: '0%', top: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 2, height: 10, backgroundColor: '#1677ff' }} />
-                <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginTop: 2 }}>1 低</span>
-              </div>
-              {/* 刻度 2 */}
-              <div style={{ position: 'absolute', left: '33%', top: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 2, height: 10, backgroundColor: '#1677ff' }} />
-                <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginTop: 2 }}>2 中</span>
-              </div>
-              {/* 刻度 3 */}
-              <div style={{ position: 'absolute', left: '66%', top: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ width: 2, height: 10, backgroundColor: '#1677ff' }} />
-                <span style={{ fontSize: 11, color: '#1677ff', fontWeight: 600, marginTop: 2 }}>3 高</span>
-              </div>
-              {/* 箭头朝右 */}
-              <div style={{ position: 'absolute', right: -14, top: -2 }}>
-                <ArrowHead direction="right" />
-              </div>
-            </div>
-            {/* X 轴标签 */}
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#1677ff', letterSpacing: 6, marginLeft: 4, whiteSpace: 'nowrap' }}>
-              绩效
-            </div>
+            <span style={{ fontSize: 12, color: '#1677ff', fontWeight: 600 }}>低</span>
+            <div style={{ flex: 1, height: 0, borderTop: '2px dashed #1677ff', margin: '0 6px' }} />
+            <span style={{ fontSize: 12, color: '#1677ff', fontWeight: 600 }}>高</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1677ff', marginLeft: 8 }}>绩效 →</span>
           </div>
         </div>
       </div>
