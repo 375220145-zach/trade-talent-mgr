@@ -10,6 +10,8 @@ import DashboardPage from './pages/DashboardPage';
 import RecruitmentPage from './pages/RecruitmentPage';
 import TalentPoolPage from './pages/TalentPoolPage';
 import NineGridPage from './pages/NineGridPage';
+import EliminationPoolPage from './pages/EliminationPoolPage';
+import InterviewCalendarPage from './pages/InterviewCalendarPage';
 import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
@@ -29,6 +31,8 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/recruitment" element={<RecruitmentPage />} />
+            <Route path="/elimination-pool" element={<EliminationPoolPage />} />
+            <Route path="/interview-calendar" element={<InterviewCalendarPage />} />
             <Route path="/talent-pool" element={<TalentPoolPage />} />
             <Route path="/nine-grid" element={<NineGridPage />} />
             <Route path="/settings" element={<SettingsPage />} />

@@ -68,6 +68,22 @@ export default function CandidateForm({ open, onClose, talent }: Props) {
 
   async function handleSubmit(values: any) {
     setSubmitting(true);
+
+    // 去重检查：手机号或邮箱已存在
+    if (!isEdit && (values.phone || values.email)) {
+      const existing = await db.talents.toArray();
+      const dup = existing.find(t =>
+        !t.is_deleted &&
+        ((values.phone && t.phone === values.phone) ||
+         (values.email && t.email === values.email))
+      );
+      if (dup) {
+        message.warning(`可能重复录入：已存在手机号或邮箱相同的候选人「${dup.name}」，请核对`);
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
     const data: Talent = {
       ...values,
@@ -87,8 +103,8 @@ export default function CandidateForm({ open, onClose, talent }: Props) {
         resume_file_name: null,
         resume_text: parsed?.raw_text || null,
         hr_review: { decision: null, notes: '', reviewed_at: null },
-        hr_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null },
-        business_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null },
+        hr_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null },
+        business_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null },
         offer_status: null,
         grid_position: null,
         performance_score: null,
@@ -99,6 +115,8 @@ export default function CandidateForm({ open, onClose, talent }: Props) {
         is_deleted: false,
         deleted_reason: null,
         deleted_at: null,
+        elimination_reason: null,
+        activity_log: [],
         created_at: now,
         languages: values.languages || [],
         trade_categories: values.trade_categories || [],

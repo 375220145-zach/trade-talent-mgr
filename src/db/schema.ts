@@ -30,9 +30,17 @@ export interface InterviewRecord {
   scheduled_at: string | null;
   interviewer: string;
   score: number | null;        // 1-10
-  notes: string;
+  notes: string;               // 内部备注（HR 自己看）
+  feedback: string;            // 候选人反馈（可发给候选人）
   passed: boolean | null;
   interviewed_at: string | null;
+}
+
+// ---- 操作日志 ----
+
+export interface ActivityLogEntry {
+  action: string;              // 操作描述，如"HR面试通过 · 评分8/10"
+  timestamp: string;
 }
 
 // ---- 候选人/人才 ----
@@ -99,6 +107,10 @@ export interface Talent {
   is_deleted: boolean;
   deleted_reason: string | null;
   deleted_at: string | null;
+  elimination_reason: string | null;  // 淘汰原因（进入淘汰池时填写）
+
+  // ---- 操作日志 ----
+  activity_log: ActivityLogEntry[];
 
   // ---- 时间戳 ----
   created_at: string;
@@ -190,3 +202,17 @@ export const STATUS_COLORS: Record<CandidateStatus, string> = {
   'hired': '#52c41a',
   'offer_rejected': '#faad14',
 };
+
+// ---- 淘汰原因 ----
+
+export const ELIMINATION_REASONS: string[] = [
+  '简历不匹配',
+  '经验不足',
+  '技能不达标',
+  '薪资期望过高',
+  '沟通能力不足',
+  '英语水平不达标',
+  '行业知识不足',
+  '已有更优人选',
+  '候选人主动放弃',
+];

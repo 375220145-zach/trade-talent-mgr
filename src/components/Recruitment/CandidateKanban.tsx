@@ -13,7 +13,6 @@ const KANBAN_COLUMNS: { status: CandidateStatus; title: string }[] = [
   { status: 'business_interview_scheduled', title: '业务面试' },
   { status: 'business_interview_passed', title: '业务通过' },
   { status: 'offer_stage', title: 'Offer' },
-  { status: 'hired', title: '已入职' },
 ];
 
 interface Props {

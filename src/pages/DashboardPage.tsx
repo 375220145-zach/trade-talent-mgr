@@ -4,7 +4,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Row, Col, Card, Select, Space, Typography, Statistic } from 'antd';
+import { Row, Col, Card, Select, Space, Typography, Statistic, Empty } from 'antd';
 import { TeamOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import type { Department, PoolType } from '../db/schema';
@@ -62,6 +62,11 @@ export default function DashboardPage() {
     }
     return list;
   }, [talents, deptFilter, poolFilter]);
+
+  // 招聘 pipeline 候选人（非内部来源 + 未淘汰 + 未删除）
+  const pipelineCandidates = useMemo(() => {
+    return talents.filter(t => !t.is_deleted && t.source !== 'internal' && t.pool_type !== 'eliminated');
+  }, [talents]);
 
   const total = filtered.length;
   const maleCount = filtered.filter(t => t.gender === '男').length;
@@ -177,6 +182,38 @@ export default function DashboardPage() {
     grid: { top: 10, right: 30, bottom: 10, left: 80 },
   };
 
+  // ---- 图表 6: 招聘漏斗 ----
+  const funnelStages = [
+    { name: '待审核', statuses: ['reviewing'] },
+    { name: '待面试', statuses: ['hr_interview_scheduled', 'business_interview_scheduled'] },
+    { name: '面试通过', statuses: ['hr_interview_passed', 'business_interview_passed'] },
+    { name: 'Offer', statuses: ['offer_stage'] },
+    { name: '已入职', statuses: ['hired'] },
+  ];
+  const funnelData = funnelStages.map(stage => ({
+    name: stage.name,
+    value: pipelineCandidates.filter(t => stage.statuses.includes(t.status)).length,
+  }));
+  const funnelOption = {
+    tooltip: { trigger: 'item' as const },
+    series: [{
+      type: 'funnel',
+      left: '10%',
+      right: '10%',
+      top: 20,
+      bottom: 20,
+      sort: 'descending' as const,
+      gap: 2,
+      label: {
+        show: true,
+        position: 'inside' as const,
+        formatter: '{b}: {c}人',
+      },
+      data: funnelData,
+      color: ['#1890ff', '#1677ff', '#52c41a', '#722ed1', '#13c2c2'],
+    }],
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -259,6 +296,19 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col span={6} />
+      </Row>
+
+      {/* 招聘漏斗 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card title="招聘漏斗" size="small">
+            {pipelineCandidates.length > 0 ? (
+              <ReactEChart option={funnelOption} style={{ height: 360 }} />
+            ) : (
+              <Empty description="暂无招聘流程中的候选人" />
+            )}
+          </Card>
+        </Col>
       </Row>
     </div>
   );

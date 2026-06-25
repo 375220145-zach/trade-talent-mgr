@@ -173,8 +173,8 @@ function generateTalent(overrides: Partial<Talent> = {}): Talent {
     reserve_level: null,
 
     hr_review: { decision: null, notes: '', reviewed_at: null },
-    hr_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null },
-    business_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null },
+    hr_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null },
+    business_interview: { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null },
 
     offer_status: null,
     grid_position: null,
@@ -188,6 +188,8 @@ function generateTalent(overrides: Partial<Talent> = {}): Talent {
     is_deleted: false,
     deleted_reason: null,
     deleted_at: null,
+    elimination_reason: null,
+    activity_log: [],
 
     created_at: randomDate(30),
     updated_at: new Date().toISOString(),
@@ -208,45 +210,42 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       t.hr_review = { decision: 'suitable', notes: '沟通表达好，经验匹配', reviewed_at: randomDate(10) };
     } else if (status === 'unsuitable') {
       t.hr_review = { decision: 'unsuitable', notes: '英语水平不达标', reviewed_at: randomDate(10) };
-      t.is_deleted = true;
-      t.deleted_reason = '简历筛选不合适';
-      t.deleted_at = randomDate(5);
+      t.pool_type = 'eliminated';
+      t.elimination_reason = '英语水平不达标';
     } else if (status === 'hr_interview_scheduled') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(12) };
-      t.hr_interview = { scheduled_at: randomDate(3), interviewer: '张HR', score: null, notes: '', passed: null, interviewed_at: null };
+      t.hr_interview = { scheduled_at: randomDate(3), interviewer: '张HR', score: null, notes: '', feedback: '', passed: null, interviewed_at: null };
     } else if (status === 'hr_interview_passed') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(12) };
-      t.hr_interview = { scheduled_at: randomDate(7), interviewer: '张HR', score: randomInt(7, 9), notes: '口语流利，逻辑清晰', passed: true, interviewed_at: randomDate(5) };
+      t.hr_interview = { scheduled_at: randomDate(7), interviewer: '张HR', score: randomInt(7, 9), notes: '口语流利，逻辑清晰', feedback: '', passed: true, interviewed_at: randomDate(5) };
     } else if (status === 'hr_interview_failed') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(14) };
-      t.hr_interview = { scheduled_at: randomDate(10), interviewer: '张HR', score: randomInt(3, 5), notes: '沟通能力弱，性格不合适', passed: false, interviewed_at: randomDate(8) };
-      t.is_deleted = true;
-      t.deleted_reason = 'HR面试不通过';
-      t.deleted_at = randomDate(5);
+      t.hr_interview = { scheduled_at: randomDate(10), interviewer: '张HR', score: randomInt(3, 5), notes: '沟通能力弱，性格不合适', feedback: '', passed: false, interviewed_at: randomDate(8) };
+      t.pool_type = 'eliminated';
+      t.elimination_reason = '沟通能力不足';
     } else if (status === 'business_interview_scheduled') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(15) };
-      t.hr_interview = { scheduled_at: randomDate(10), interviewer: '张HR', score: 8, notes: '口语流利', passed: true, interviewed_at: randomDate(7) };
-      t.business_interview = { scheduled_at: randomDate(3), interviewer: '王总', score: null, notes: '', passed: null, interviewed_at: null };
+      t.hr_interview = { scheduled_at: randomDate(10), interviewer: '张HR', score: 8, notes: '口语流利', feedback: '', passed: true, interviewed_at: randomDate(7) };
+      t.business_interview = { scheduled_at: randomDate(3), interviewer: '王总', score: null, notes: '', feedback: '', passed: null, interviewed_at: null };
     } else if (status === 'business_interview_passed') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(20) };
-      t.hr_interview = { scheduled_at: randomDate(15), interviewer: '张HR', score: 8, notes: '口语流利', passed: true, interviewed_at: randomDate(12) };
-      t.business_interview = { scheduled_at: randomDate(8), interviewer: '王总', score: randomInt(7, 9), notes: '业务能力强，有客户资源', passed: true, interviewed_at: randomDate(5) };
+      t.hr_interview = { scheduled_at: randomDate(15), interviewer: '张HR', score: 8, notes: '口语流利', feedback: '', passed: true, interviewed_at: randomDate(12) };
+      t.business_interview = { scheduled_at: randomDate(8), interviewer: '王总', score: randomInt(7, 9), notes: '业务能力强，有客户资源', feedback: '', passed: true, interviewed_at: randomDate(5) };
     } else if (status === 'business_interview_failed') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(18) };
-      t.hr_interview = { scheduled_at: randomDate(14), interviewer: '张HR', score: 7, notes: '尚可', passed: true, interviewed_at: randomDate(11) };
-      t.business_interview = { scheduled_at: randomDate(8), interviewer: '王总', score: randomInt(3, 5), notes: '行业知识不足', passed: false, interviewed_at: randomDate(6) };
-      t.is_deleted = true;
-      t.deleted_reason = '业务面试不通过';
-      t.deleted_at = randomDate(3);
+      t.hr_interview = { scheduled_at: randomDate(14), interviewer: '张HR', score: 7, notes: '尚可', feedback: '', passed: true, interviewed_at: randomDate(11) };
+      t.business_interview = { scheduled_at: randomDate(8), interviewer: '王总', score: randomInt(3, 5), notes: '行业知识不足', feedback: '', passed: false, interviewed_at: randomDate(6) };
+      t.pool_type = 'eliminated';
+      t.elimination_reason = '行业知识不足';
     } else if (status === 'offer_stage') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(25) };
-      t.hr_interview = { scheduled_at: randomDate(20), interviewer: '张HR', score: 8, notes: '优秀', passed: true, interviewed_at: randomDate(17) };
-      t.business_interview = { scheduled_at: randomDate(12), interviewer: '王总', score: 8, notes: '综合素质高', passed: true, interviewed_at: randomDate(9) };
+      t.hr_interview = { scheduled_at: randomDate(20), interviewer: '张HR', score: 8, notes: '优秀', feedback: '', passed: true, interviewed_at: randomDate(17) };
+      t.business_interview = { scheduled_at: randomDate(12), interviewer: '王总', score: 8, notes: '综合素质高', feedback: '', passed: true, interviewed_at: randomDate(9) };
       t.offer_status = 'pending';
     } else if (status === 'hired') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(30) };
-      t.hr_interview = { scheduled_at: randomDate(25), interviewer: '张HR', score: 9, notes: '优秀', passed: true, interviewed_at: randomDate(22) };
-      t.business_interview = { scheduled_at: randomDate(17), interviewer: '王总', score: 9, notes: '综合能力突出', passed: true, interviewed_at: randomDate(14) };
+      t.hr_interview = { scheduled_at: randomDate(25), interviewer: '张HR', score: 9, notes: '优秀', feedback: '', passed: true, interviewed_at: randomDate(22) };
+      t.business_interview = { scheduled_at: randomDate(17), interviewer: '王总', score: 9, notes: '综合能力突出', feedback: '', passed: true, interviewed_at: randomDate(14) };
       t.offer_status = 'accepted';
       t.pool_type = 'active';
       t.source = 'internal';  // 入职即内部员工
@@ -261,9 +260,11 @@ function genWithStatus(status: Talent['status'], count: number, overrides: Parti
       }
     } else if (status === 'offer_rejected') {
       t.hr_review = { decision: 'suitable', notes: '经验匹配', reviewed_at: randomDate(28) };
-      t.hr_interview = { scheduled_at: randomDate(23), interviewer: '张HR', score: 8, notes: '优秀', passed: true, interviewed_at: randomDate(20) };
-      t.business_interview = { scheduled_at: randomDate(15), interviewer: '王总', score: 7, notes: '尚可', passed: true, interviewed_at: randomDate(12) };
+      t.hr_interview = { scheduled_at: randomDate(23), interviewer: '张HR', score: 8, notes: '优秀', feedback: '', passed: true, interviewed_at: randomDate(20) };
+      t.business_interview = { scheduled_at: randomDate(15), interviewer: '王总', score: 7, notes: '尚可', feedback: '', passed: true, interviewed_at: randomDate(12) };
       t.offer_status = 'rejected';
+      t.pool_type = 'eliminated';
+      t.elimination_reason = '候选人主动放弃';
     }
 
     talents.push(t);
@@ -289,8 +290,8 @@ function genActiveEmployee(overrides: Partial<Talent> = {}): Talent {
     ...overrides,
   });
   t.hr_review = { decision: 'suitable', notes: '', reviewed_at: randomDate(365) };
-  t.hr_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
-  t.business_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', passed: null, interviewed_at: null };
+  t.hr_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null };
+  t.business_interview = { scheduled_at: null, interviewer: '', score: null, notes: '', feedback: '', passed: null, interviewed_at: null };
   t.offer_status = 'accepted';
 
   // 按分数自动落位

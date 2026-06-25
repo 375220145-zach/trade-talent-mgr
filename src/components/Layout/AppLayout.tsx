@@ -13,6 +13,8 @@ import {
   SettingOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  StopOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 
 const { Sider, Content, Header } = Layout;
@@ -20,6 +22,8 @@ const { Sider, Content, Header } = Layout;
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
   { key: '/recruitment', icon: <UserSwitchOutlined />, label: '招聘管道' },
+  { key: '/elimination-pool', icon: <StopOutlined />, label: '淘汰池' },
+  { key: '/interview-calendar', icon: <CalendarOutlined />, label: '面试日历' },
   { key: '/talent-pool', icon: <TeamOutlined />, label: '人才库' },
   { key: '/nine-grid', icon: <AppstoreOutlined />, label: '九宫格' },
   { key: '/settings', icon: <SettingOutlined />, label: '设置' },

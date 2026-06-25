@@ -107,6 +107,32 @@ export default function NineGridPage() {
     setSelectedTalent(null);
   }
 
+  async function handleEliminate() {
+    if (!selectedTalent?.id) return;
+    await db.talents.update(selectedTalent.id, {
+      pool_type: 'eliminated',
+      elimination_reason: '九宫格淘汰',
+      updated_at: new Date().toISOString(),
+    });
+    message.success(`${selectedTalent.name} 已淘汰`);
+    setSelectedTalent(null);
+  }
+
+  async function handleTransferReserve() {
+    if (!selectedTalent?.id) return;
+    await db.talents.update(selectedTalent.id, {
+      pool_type: 'reserve',
+      reserve_level: 'B',
+      updated_at: new Date().toISOString(),
+    });
+    message.success(`${selectedTalent.name} 已转入储备B库`);
+    setSelectedTalent(null);
+  }
+
+  function handleViewFullProfile() {
+    message.info('请前往人才库查看完整档案和操作');
+  }
+
   // ---- 渲染单个格子 ----
   function renderCell(x: number, y: number) {
     const key = `${x},${y}`;
@@ -312,13 +338,22 @@ export default function NineGridPage() {
             </Descriptions>
             {selectedTalent.highlights && <p>🌟 {selectedTalent.highlights}</p>}
             {selectedTalent.risks && <p style={{ color: '#ff4d4f' }}>⚠️ {selectedTalent.risks}</p>}
-            <Button type="primary" icon={<EditOutlined />} onClick={() => {
-              setEditPerf(selectedTalent.performance_score);
-              setEditPot(selectedTalent.potential_score);
-              setEditingScores(true);
-            }} style={{ marginTop: 12 }}>
-              编辑评分
-            </Button>
+            <Space wrap style={{ marginTop: 12 }}>
+              <Button type="primary" icon={<EditOutlined />} onClick={() => {
+                setEditPerf(selectedTalent.performance_score);
+                setEditPot(selectedTalent.potential_score);
+                setEditingScores(true);
+              }}>
+                编辑评分
+              </Button>
+              {selectedTalent.pool_type !== 'key_position' && (
+                <Button danger ghost onClick={handleEliminate}>淘汰</Button>
+              )}
+              {(selectedTalent.pool_type === 'active' || selectedTalent.pool_type === 'pre_eliminated') && (
+                <Button onClick={handleTransferReserve}>转储备</Button>
+              )}
+              <Button onClick={handleViewFullProfile}>查看完整档案</Button>
+            </Space>
           </div>
         )}
         {selectedTalent && editingScores && (

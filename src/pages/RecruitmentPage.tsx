@@ -6,16 +6,17 @@ import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   Table, Button, Space, Input, Select, Tag, Typography, Segmented,
-  Switch,
+  Switch, Popconfirm, message,
 } from 'antd';
 import {
-  PlusOutlined, SearchOutlined, ClearOutlined,
+  PlusOutlined, SearchOutlined, ClearOutlined, DownloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Talent, CandidateStatus } from '../db/schema';
 import { STATUS_LABELS, STATUS_COLORS, RESERVE_LEVEL_LABELS } from '../db/schema';
 import { db } from '../db';
 import { seedMockData } from '../db/mock-data';
+import { exportTalentCSV } from '../utils/export-csv';
 import CandidateForm from '../components/Recruitment/CandidateForm';
 import CandidateDetail from '../components/Recruitment/CandidateDetail';
 import CandidateKanban from '../components/Recruitment/CandidateKanban';
@@ -28,15 +29,53 @@ export default function RecruitmentPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTalent, setEditTalent] = useState<Talent | null>(null);
   const [detailTalent, setDetailTalent] = useState<Talent | null>(null);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const talents = useLiveQuery(() => db.talents.toArray(), []) || [];
 
-  // 自动 seed mock data
+  // 批量操作
+  async function batchSuitable() {
+    const now = new Date().toISOString();
+    let count = 0;
+    for (const id of selectedRowKeys) {
+      const t = talents.find(t2 => t2.id === Number(id));
+      if (t && t.status === 'reviewing') {
+        await db.talents.update(Number(id), {
+          status: 'suitable',
+          hr_review: { decision: 'suitable', notes: '批量标记', reviewed_at: now },
+          updated_at: now,
+        });
+        count++;
+      }
+    }
+    message.success(`已标记 ${count} 人为合适`);
+    setSelectedRowKeys([]);
+  }
+
+  async function batchEliminate() {
+    const now = new Date().toISOString();
+    let count = 0;
+    for (const id of selectedRowKeys) {
+      await db.talents.update(Number(id), {
+        status: 'unsuitable',
+        pool_type: 'eliminated',
+        elimination_reason: '批量淘汰',
+        updated_at: now,
+      });
+      count++;
+    }
+    message.success(`已淘汰 ${count} 人`);
+    setSelectedRowKeys([]);
+  }
+
+  const hasSelected = selectedRowKeys.length > 0;
   useState(() => { seedMockData(); });
 
   const filtered = useMemo(() => {
     let list = talents;
+    // 招聘管道：只显示外部候选人，排除已入职和已淘汰
     if (!showDeleted) list = list.filter(t => !t.is_deleted);
+    list = list.filter(t => t.source !== 'internal' && t.pool_type !== 'eliminated');
     if (statusFilter !== 'all') list = list.filter(t => t.status === statusFilter);
     if (searchText) {
       const kw = searchText.toLowerCase();
@@ -106,7 +145,12 @@ export default function RecruitmentPage() {
             style={{ width: 140 }}
             options={[
               { label: '全部状态', value: 'all' },
-              ...Object.entries(STATUS_LABELS).map(([k, v]) => ({ label: v, value: k })),
+              { label: '待审核', value: 'reviewing' },
+              { label: 'HR面试已安排', value: 'hr_interview_scheduled' },
+              { label: 'HR面试通过', value: 'hr_interview_passed' },
+              { label: '业务面试已安排', value: 'business_interview_scheduled' },
+              { label: '业务面试通过', value: 'business_interview_passed' },
+              { label: 'Offer阶段', value: 'offer_stage' },
             ]}
           />
           <span>
@@ -128,11 +172,28 @@ export default function RecruitmentPage() {
             value={viewMode}
             onChange={v => setViewMode(v as 'table' | 'kanban')}
           />
+          <Button icon={<DownloadOutlined />} onClick={() => exportTalentCSV(filtered, '招聘管道.csv')}>
+            导出
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditTalent(null); setFormOpen(true); }}>
             录入候选人
           </Button>
         </Space>
       </div>
+
+      {/* 批量操作栏 */}
+      {hasSelected && viewMode === 'table' && (
+        <div style={{ marginBottom: 12, padding: '8px 12px', background: '#e6f7ff', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span>已选 <strong>{selectedRowKeys.length}</strong> 人</span>
+          <Popconfirm title="标记选中候选人为合适？" onConfirm={batchSuitable}>
+            <Button size="small" type="primary" ghost>批量标记合适</Button>
+          </Popconfirm>
+          <Popconfirm title="淘汰所有选中候选人？" onConfirm={batchEliminate}>
+            <Button size="small" danger ghost>批量淘汰</Button>
+          </Popconfirm>
+          <Button size="small" onClick={() => setSelectedRowKeys([])}>取消选择</Button>
+        </div>
+      )}
 
       {/* 内容区 */}
       {viewMode === 'table' ? (
@@ -141,6 +202,10 @@ export default function RecruitmentPage() {
           dataSource={filtered}
           rowKey="id"
           size="middle"
+          rowSelection={{
+            selectedRowKeys,
+            onChange: setSelectedRowKeys,
+          }}
           pagination={{ pageSize: 20, showTotal: (total) => `共 ${total} 人` }}
           onRow={(record) => ({
             onClick: () => setDetailTalent(record),

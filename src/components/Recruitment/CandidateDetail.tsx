@@ -1,18 +1,18 @@
 // ============================================================
-// 候选人详情 — 全信息展示 + 状态操作 + 面试记录 + 储备等级
+// 候选人详情 — 全信息展示 + 状态操作 + 面试记录 + 淘汰原因
 // ============================================================
 
 import { useState, useEffect } from 'react';
 import {
   Drawer, Descriptions, Tag, Button, Space, Divider, Input, InputNumber,
-  DatePicker, message, Popconfirm, Typography, Timeline,
+  DatePicker, Select, message, Popconfirm, Typography, Timeline,
 } from 'antd';
 import {
   CheckOutlined, CloseOutlined, ArrowRightOutlined, EditOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Talent, CandidateStatus } from '../../db/schema';
-import { STATUS_LABELS, STATUS_COLORS } from '../../db/schema';
+import { STATUS_LABELS, STATUS_COLORS, ELIMINATION_REASONS } from '../../db/schema';
 import { executeTransition } from '../../utils/status-engine';
 import { db } from '../../db';
 
@@ -30,17 +30,27 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
   const [interviewer, setInterviewer] = useState('');
   const [interviewScore, setInterviewScore] = useState<number | null>(null);
   const [interviewNotes, setInterviewNotes] = useState('');
+  const [interviewFeedback, setInterviewFeedback] = useState('');
   const [editingInterview, setEditingInterview] = useState(false);
   const [editingStage, setEditingStage] = useState<'hr' | 'business' | null>(null);
 
-  // 切换人才时重置表单状态
+  // 淘汰原因选择
+  const [rejectionTarget, setRejectionTarget] = useState<CandidateStatus | null>(null);
+  const [eliminationReason, setEliminationReason] = useState<string>('');
+  const [eliminationReasonCustom, setEliminationReasonCustom] = useState('');
+
+  // 切换人才时重置所有状态
   useEffect(() => {
     setInterviewDate(null);
     setInterviewer('');
     setInterviewScore(null);
     setInterviewNotes('');
+    setInterviewFeedback('');
     setEditingInterview(false);
     setEditingStage(null);
+    setRejectionTarget(null);
+    setEliminationReason('');
+    setEliminationReasonCustom('');
   }, [talent?.id, open]);
 
   if (!talent) return null;
@@ -60,6 +70,8 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
     talent.status === 'hr_interview_scheduled' ? 'hr' :
     talent.status === 'business_interview_scheduled' ? 'business' : null;
 
+  const finalReason = eliminationReason === '其他' ? eliminationReasonCustom : eliminationReason;
+
   async function handleTransition(to: CandidateStatus, extra?: Partial<Talent>) {
     setActing(true);
     try {
@@ -72,10 +84,27 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
     setActing(false);
   }
 
+  // 确认淘汰（带原因）
+  async function confirmRejection() {
+    if (!rejectionTarget) return;
+    if (!finalReason.trim()) {
+      message.warning('请选择或填写淘汰原因');
+      return;
+    }
+    const extra: Partial<Talent> = { elimination_reason: finalReason.trim() };
+    // 面试不通过走 handleInterviewResult，不走这里
+    await handleTransition(rejectionTarget, extra);
+    setRejectionTarget(null);
+  }
+
   // 提交面试结果
   async function handleInterviewResult(passed: boolean) {
-    if (!currentInterviewStage || !interviewDate || !talent) {
+    if (!currentInterviewStage || !talent) {
       message.warning('请至少填写面试日期');
+      return;
+    }
+    if (!passed && !finalReason.trim()) {
+      message.warning('请选择或填写淘汰原因');
       return;
     }
     setActing(true);
@@ -89,13 +118,18 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
       interviewer: interviewer || existingRec.interviewer,
       score: interviewScore,
       notes: interviewNotes,
+      feedback: interviewFeedback,
       passed,
-      interviewed_at: interviewDate.toISOString(),
+      interviewed_at: interviewDate!.toISOString(),
     };
 
     const extra: Partial<Talent> = currentInterviewStage === 'hr'
       ? { hr_interview: interviewRecord }
       : { business_interview: interviewRecord };
+
+    if (!passed) {
+      extra.elimination_reason = finalReason.trim();
+    }
 
     try {
       await executeTransition(talent, toStatus, extra);
@@ -117,6 +151,7 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
       interviewer: interviewer || existingRec.interviewer,
       score: interviewScore,
       notes: interviewNotes,
+      feedback: existingRec.feedback || '',
       passed: existingRec.passed,
       interviewed_at: interviewDate.toISOString(),
     };
@@ -139,9 +174,51 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
     setInterviewer(record.interviewer || '');
     setInterviewScore(record.score);
     setInterviewNotes(record.notes || '');
+    setInterviewFeedback(record.feedback || '');
     setEditingStage(stage);
     setEditingInterview(true);
   }
+
+  // ---- 淘汰原因选择器（复用组件） ----
+  const renderRejectionReasonPicker = () => (
+    <div style={{ padding: 12, background: '#fff2f0', borderRadius: 8, marginBottom: 12 }}>
+      <Typography.Text strong style={{ display: 'block', marginBottom: 8, color: '#ff4d4f' }}>
+        选择淘汰原因
+      </Typography.Text>
+      <Space direction="vertical" style={{ width: '100%' }} size={8}>
+        <Select
+          value={eliminationReason || undefined}
+          onChange={(v) => { setEliminationReason(v); if (v !== '其他') setEliminationReasonCustom(''); }}
+          placeholder="请选择淘汰原因"
+          style={{ width: '100%' }}
+          options={[
+            ...ELIMINATION_REASONS.map(r => ({ label: r, value: r })),
+            { label: '其他（手动填写）', value: '其他' },
+          ]}
+        />
+        {eliminationReason === '其他' && (
+          <Input
+            value={eliminationReasonCustom}
+            onChange={e => setEliminationReasonCustom(e.target.value)}
+            placeholder="请填写具体原因"
+          />
+        )}
+        <Space>
+          <Button
+            type="primary"
+            danger
+            loading={acting}
+            onClick={confirmRejection}
+          >
+            确认淘汰
+          </Button>
+          <Button onClick={() => { setRejectionTarget(null); setEliminationReason(''); setEliminationReasonCustom(''); }}>
+            取消
+          </Button>
+        </Space>
+      </Space>
+    </div>
+  );
 
   // ---- 面试录入表单 ----
   const renderInterviewForm = (stage: 'hr' | 'business') => {
@@ -204,12 +281,21 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
             </div>
           </Space>
           <div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>评语</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>内部备注</div>
             <Input.TextArea
               value={interviewNotes}
               onChange={e => setInterviewNotes(e.target.value)}
               rows={2}
-              placeholder="面试评价..."
+              placeholder="仅HR可见的内部评价..."
+            />
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>候选人反馈</div>
+            <Input.TextArea
+              value={interviewFeedback}
+              onChange={e => setInterviewFeedback(e.target.value)}
+              rows={2}
+              placeholder="可发给候选人的反馈..."
             />
           </div>
           {editingInterview ? (
@@ -220,14 +306,44 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
               </Button>
             </Space>
           ) : currentInterviewStage === stage ? (
-            <Space>
-              <Popconfirm title="确认面试通过？" onConfirm={() => handleInterviewResult(true)}>
-                <Button type="primary" icon={<CheckOutlined />} loading={acting}>通过</Button>
-              </Popconfirm>
-              <Popconfirm title="确认面试不通过？简历将标记为淘汰" onConfirm={() => handleInterviewResult(false)}>
-                <Button danger icon={<CloseOutlined />} loading={acting}>不通过</Button>
-              </Popconfirm>
-            </Space>
+            <>
+              {/* 淘汰原因（面试不通过时显示） */}
+              <div style={{ padding: 12, background: '#fffbe6', borderRadius: 8 }}>
+                <Typography.Text strong style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>
+                  淘汰原因（不通过时需填写）
+                </Typography.Text>
+                <Select
+                  value={eliminationReason || undefined}
+                  onChange={(v) => { setEliminationReason(v); if (v !== '其他') setEliminationReasonCustom(''); }}
+                  placeholder="选择淘汰原因（通过则忽略）"
+                  style={{ width: '100%', marginBottom: 8 }}
+                  options={[
+                    ...ELIMINATION_REASONS.map(r => ({ label: r, value: r })),
+                    { label: '其他（手动填写）', value: '其他' },
+                  ]}
+                />
+                {eliminationReason === '其他' && (
+                  <Input
+                    value={eliminationReasonCustom}
+                    onChange={e => setEliminationReasonCustom(e.target.value)}
+                    placeholder="请填写具体原因"
+                    style={{ marginBottom: 8 }}
+                  />
+                )}
+              </div>
+              <Space>
+                <Popconfirm title="确认面试通过？" onConfirm={() => handleInterviewResult(true)}>
+                  <Button type="primary" icon={<CheckOutlined />} loading={acting}>通过</Button>
+                </Popconfirm>
+                <Popconfirm
+                  title="确认面试不通过？人选将进入淘汰池"
+                  onConfirm={() => handleInterviewResult(false)}
+                  disabled={!eliminationReason && !eliminationReasonCustom}
+                >
+                  <Button danger icon={<CloseOutlined />} loading={acting}>不通过</Button>
+                </Popconfirm>
+              </Space>
+            </>
           ) : null}
         </Space>
       </div>
@@ -236,6 +352,11 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
 
   // ---- action buttons per status ----
   const renderActions = () => {
+    // 淘汰原因选择中
+    if (rejectionTarget) {
+      return renderRejectionReasonPicker();
+    }
+
     if (nextStatuses.length === 0) {
       return <Tag>终态，无可用操作</Tag>;
     }
@@ -244,6 +365,7 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
       <Space wrap>
         {nextStatuses.map(next => {
           const label = STATUS_LABELS[next];
+
           if (next === 'suitable' && talent.status === 'reviewing') {
             return (
               <Popconfirm
@@ -259,15 +381,18 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
           }
           if (next === 'unsuitable') {
             return (
-              <Popconfirm
+              <Button
                 key={next}
-                title="确认不合适？简历将在30天后清除"
-                onConfirm={() => handleTransition(next, {
-                  hr_review: { ...talent.hr_review, decision: 'unsuitable', reviewed_at: new Date().toISOString() }
-                })}
+                danger
+                icon={<CloseOutlined />}
+                loading={acting}
+                onClick={() => {
+                  setRejectionTarget(next);
+                  setEliminationReason(talent.elimination_reason || '');
+                }}
               >
-                <Button danger icon={<CloseOutlined />} loading={acting}>{label}</Button>
-              </Popconfirm>
+                {label}
+              </Button>
             );
           }
           if (next === 'hr_interview_scheduled') {
@@ -292,6 +417,34 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
               </Popconfirm>
             );
           }
+          // offer_stage → hired / offer_rejected
+          if (next === 'hired') {
+            return (
+              <Popconfirm
+                key={next}
+                title="确认入职？候选人将转入人才库"
+                onConfirm={() => handleTransition(next)}
+              >
+                <Button type="primary" icon={<CheckOutlined />} loading={acting}>{label}</Button>
+              </Popconfirm>
+            );
+          }
+          if (next === 'offer_rejected') {
+            return (
+              <Button
+                key={next}
+                danger
+                icon={<CloseOutlined />}
+                loading={acting}
+                onClick={() => {
+                  setRejectionTarget(next);
+                  setEliminationReason(talent.elimination_reason || '');
+                }}
+              >
+                拒绝Offer
+              </Button>
+            );
+          }
           return (
             <Popconfirm
               key={next}
@@ -312,7 +465,7 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
         <Space>
           <span>{talent.name}</span>
           <Tag color={STATUS_COLORS[talent.status]}>{STATUS_LABELS[talent.status]}</Tag>
-          {talent.is_deleted && <Tag color="red">已删除</Tag>}
+          {talent.pool_type === 'eliminated' && <Tag color="red">淘汰池</Tag>}
         </Space>
       }
       open={open}
@@ -411,6 +564,16 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
         </div>
       )}
 
+      {/* 淘汰原因（已淘汰人选展示） */}
+      {talent.elimination_reason && (
+        <>
+          <Divider>淘汰信息</Divider>
+          <div style={{ color: '#ff4d4f', marginBottom: 8 }}>
+            ⛔ 淘汰原因：{talent.elimination_reason}
+          </div>
+        </>
+      )}
+
       {/* 评价信息 */}
       {(talent.highlights || talent.risks || talent.general_notes) && (
         <>
@@ -418,6 +581,23 @@ export default function CandidateDetail({ talent, open, onClose }: Props) {
           {talent.highlights && <div style={{ marginBottom: 8 }}>🌟 亮点：{talent.highlights}</div>}
           {talent.risks && <div style={{ marginBottom: 8, color: '#ff4d4f' }}>⚠️ 风险：{talent.risks}</div>}
           {talent.general_notes && <div>📝 备注：{talent.general_notes}</div>}
+        </>
+      )}
+
+      {/* 操作日志 */}
+      {talent.activity_log && talent.activity_log.length > 0 && (
+        <>
+          <Divider>操作记录</Divider>
+          <Timeline
+            items={[...talent.activity_log].reverse().slice(0, 10).map(entry => ({
+              children: (
+                <div>
+                  <div>{entry.action}</div>
+                  <div style={{ fontSize: 12, color: '#999' }}>{entry.timestamp?.slice(0, 16).replace('T', ' ')}</div>
+                </div>
+              ),
+            }))}
+          />
         </>
       )}
     </Drawer>

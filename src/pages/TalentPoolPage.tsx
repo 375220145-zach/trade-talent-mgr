@@ -8,12 +8,13 @@ import {
   Table, Tag, Select, Input, Space, Typography, Button, Modal,
   Descriptions, message,
 } from 'antd';
-import { SearchOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons';
+import { SearchOutlined, EditOutlined, SaveOutlined, DownloadOutlined, SendOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Talent, PoolType, ReserveLevel } from '../db/schema';
-import { POOL_TYPE_LABELS, RESERVE_LEVEL_LABELS, GRID_LABELS } from '../db/schema';
+import { POOL_TYPE_LABELS, RESERVE_LEVEL_LABELS, GRID_LABELS, ELIMINATION_REASONS } from '../db/schema';
 import { db } from '../db';
 import { seedMockData } from '../db/mock-data';
+import { exportTalentCSV } from '../utils/export-csv';
 
 export default function TalentPoolPage() {
   const [searchText, setSearchText] = useState('');
@@ -24,6 +25,8 @@ export default function TalentPoolPage() {
   const [levelValue, setLevelValue] = useState<ReserveLevel>(null);
   const [editingPoolType, setEditingPoolType] = useState(false);
   const [poolTypeValue, setPoolTypeValue] = useState<PoolType>('active');
+  const [eliminationReason, setEliminationReason] = useState<string>('');
+  const [eliminationReasonCustom, setEliminationReasonCustom] = useState('');
 
   async function handleSaveLevel() {
     if (!detailTalent?.id) return;
@@ -38,14 +41,42 @@ export default function TalentPoolPage() {
     if (updated) setDetailTalent(updated);
   }
 
-  async function handleSavePoolType() {
+  // 储备池 → 招聘管道回流
+  async function handleMoveToRecruitment() {
     if (!detailTalent?.id) return;
     await db.talents.update(detailTalent.id, {
-      pool_type: poolTypeValue,
+      source: 'hr_upload',
+      status: 'reviewing',
+      pool_type: 'active',
+      reserve_level: null,
       updated_at: new Date().toISOString(),
     });
+    message.success(`${detailTalent.name} 已转入招聘管道`);
+    const updated = await db.talents.get(detailTalent.id);
+    if (updated) setDetailTalent(updated);
+  }
+
+  async function handleSavePoolType() {
+    if (!detailTalent?.id) return;
+    const reason = poolTypeValue === 'eliminated'
+      ? (eliminationReason === '其他' ? eliminationReasonCustom : eliminationReason)
+      : undefined;
+    if (poolTypeValue === 'eliminated' && !reason?.trim()) {
+      message.warning('请选择或填写淘汰原因');
+      return;
+    }
+    const update: Partial<Talent> = {
+      pool_type: poolTypeValue,
+      updated_at: new Date().toISOString(),
+    };
+    if (poolTypeValue === 'eliminated') {
+      update.elimination_reason = reason?.trim();
+    }
+    await db.talents.update(detailTalent.id, update);
     message.success(`库类型已更新为: ${POOL_TYPE_LABELS[poolTypeValue]}`);
     setEditingPoolType(false);
+    setEliminationReason('');
+    setEliminationReasonCustom('');
     const updated = await db.talents.get(detailTalent.id);
     if (updated) setDetailTalent(updated);
   }
@@ -57,6 +88,8 @@ export default function TalentPoolPage() {
   useEffect(() => {
     setEditingLevel(false);
     setEditingPoolType(false);
+    setEliminationReason('');
+    setEliminationReasonCustom('');
   }, [detailTalent?.id]);
 
   const filtered = useMemo(() => {
@@ -176,7 +209,7 @@ export default function TalentPoolPage() {
             ]}
           />
         </Space>
-        <Button icon={<EditOutlined />} onClick={() => message.info('批量管理功能开发中')}>批量管理</Button>
+        <Button icon={<DownloadOutlined />} onClick={() => exportTalentCSV(filtered, '人才库.csv')}>导出</Button>
       </div>
 
       <Table
@@ -194,8 +227,22 @@ export default function TalentPoolPage() {
         title={`${detailTalent?.name || ''} — 人才详情`}
         open={!!detailTalent}
         onCancel={() => setDetailTalent(null)}
-        footer={null}
-        width={600}
+        footer={
+          detailTalent?.pool_type === 'reserve' ? (
+            <Space>
+              <Button
+                icon={<SendOutlined />}
+                onClick={handleMoveToRecruitment}
+              >
+                转入招聘管道
+              </Button>
+              <Button onClick={() => setDetailTalent(null)}>关闭</Button>
+            </Space>
+          ) : (
+            <Button onClick={() => setDetailTalent(null)}>关闭</Button>
+          )
+        }
+        width={640}
       >
         {detailTalent && (
           <Descriptions column={2} size="small" bordered>
@@ -205,22 +252,48 @@ export default function TalentPoolPage() {
             <Descriptions.Item label="工龄">{detailTalent.work_years}年（外贸{detailTalent.trade_experience_years}年）</Descriptions.Item>
             <Descriptions.Item label="库类型">
               {editingPoolType ? (
-                <Space>
-                  <Select
-                    size="small"
-                    value={poolTypeValue}
-                    onChange={setPoolTypeValue}
-                    style={{ width: 150 }}
-                    options={[
-                      { label: '在岗', value: 'active' },
-                      { label: '储备（备份）', value: 'reserve' },
-                      { label: '关键岗', value: 'key_position' },
-                      { label: '预淘汰', value: 'pre_eliminated' },
-                      { label: '淘汰', value: 'eliminated' },
-                    ]}
-                  />
-                  <Button size="small" type="primary" icon={<SaveOutlined />} onClick={handleSavePoolType}>保存</Button>
-                  <Button size="small" onClick={() => setEditingPoolType(false)}>取消</Button>
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  <Space>
+                    <Select
+                      size="small"
+                      value={poolTypeValue}
+                      onChange={(v) => { setPoolTypeValue(v); if (v !== 'eliminated') { setEliminationReason(''); setEliminationReasonCustom(''); } }}
+                      style={{ width: 150 }}
+                      options={[
+                        { label: '在岗', value: 'active' },
+                        { label: '储备（备份）', value: 'reserve' },
+                        { label: '关键岗', value: 'key_position' },
+                        { label: '预淘汰', value: 'pre_eliminated' },
+                        { label: '淘汰', value: 'eliminated' },
+                      ]}
+                    />
+                    <Button size="small" type="primary" icon={<SaveOutlined />} onClick={handleSavePoolType}>保存</Button>
+                    <Button size="small" onClick={() => { setEditingPoolType(false); setEliminationReason(''); setEliminationReasonCustom(''); }}>取消</Button>
+                  </Space>
+                  {poolTypeValue === 'eliminated' && (
+                    <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                      <div style={{ fontSize: 12, color: '#ff4d4f' }}>淘汰原因：</div>
+                      <Select
+                        size="small"
+                        value={eliminationReason || undefined}
+                        onChange={(v) => { setEliminationReason(v); if (v !== '其他') setEliminationReasonCustom(''); }}
+                        placeholder="选择淘汰原因"
+                        style={{ width: '100%' }}
+                        options={[
+                          ...ELIMINATION_REASONS.map(r => ({ label: r, value: r })),
+                          { label: '其他（手动填写）', value: '其他' },
+                        ]}
+                      />
+                      {eliminationReason === '其他' && (
+                        <Input
+                          size="small"
+                          value={eliminationReasonCustom}
+                          onChange={e => setEliminationReasonCustom(e.target.value)}
+                          placeholder="请填写具体原因"
+                        />
+                      )}
+                    </Space>
+                  )}
                 </Space>
               ) : (
                 <Space>
